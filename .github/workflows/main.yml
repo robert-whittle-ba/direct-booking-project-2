@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ "main" ] # Triggers every time you push code to the main branch
+    branches: [ "main" ]
 
 permissions:
   contents: read
@@ -20,16 +20,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          package-manager-cache: false
+          # We removed 'cache' and 'package-manager-cache' to avoid errors
 
       - name: Install dependencies
-        run: npm install
+        # Standard install since AI Studio doesn't provide a lockfile
+        run: npm install 
 
       - name: Build
         run: npm run build
         env:
-          # This pulls the secret you created in GitHub Settings
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }} 
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -37,7 +37,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist' # Vite builds into the 'dist' folder
+          path: './dist' 
 
       - name: Deploy to GitHub Pages
         id: deployment
