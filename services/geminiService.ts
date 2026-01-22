@@ -2,13 +2,6 @@ import { GoogleGenAI } from "@google/genai";
 import { Answer, AnswerValue } from '../types';
 import { QUESTIONS } from '../constants';
 
-const getClient = () => {
-  // Support both standard process.env (for system) and Vite (for local dev)
-  const apiKey = process.env.API_KEY || (import.meta as any).env?.VITE_API_KEY;
-  if (!apiKey) return null;
-  return new GoogleGenAI({ apiKey });
-};
-
 // Original "Smart Fallback" - Logic to simulate AI analysis locally if API fails
 const generateLocalAnalysis = (answers: Answer[], scorePercent: number): string => {
   const failedQuestions = answers
@@ -52,8 +45,6 @@ const generateLocalAnalysis = (answers: Answer[], scorePercent: number): string 
 };
 
 export const generateStrategicAnalysis = async (answers: Answer[]): Promise<string> => {
-  const client = getClient();
-  
   const passedItems = answers.filter(a => a.value === AnswerValue.YES).length;
   const scorePercent = Math.round((passedItems / QUESTIONS.length) * 100);
 
@@ -68,13 +59,14 @@ export const generateStrategicAnalysis = async (answers: Answer[]): Promise<stri
     .join('\n');
 
   // 2. Handle No API Key (Fallback)
-  if (!client) {
+  // Obtained exclusively from process.env.API_KEY as per guidelines
+  if (!process.env.API_KEY) {
     // Add a small delay to simulate processing credibility
     await new Promise(resolve => setTimeout(resolve, 1500));
     return generateLocalAnalysis(answers, scorePercent);
   }
 
-  // 3. Construct the Original, Functional Prompt
+  // 3. Construct the prompt and query GenAI
   const prompt = `
     You are a Senior Hospitality Tech Consultant.
     The hotel scored ${scorePercent}% on their Digital Audit.
@@ -94,11 +86,14 @@ export const generateStrategicAnalysis = async (answers: Answer[]): Promise<stri
   `;
 
   try {
-    const response = await client.models.generateContent({
-      model: 'gemini-2.5-flash',
+    // Initialize GoogleGenAI right before use to ensure the latest key is used
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview', // Correct model for basic text tasks
       contents: prompt,
     });
     
+    // Extract text directly from the property (not a method)
     let text = response.text;
 
     if (!text) throw new Error("No response generated");

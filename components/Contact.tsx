@@ -40,7 +40,7 @@ export const Contact: React.FC = () => {
         </div>
 
         <Button 
-            href="https://bookassist.org/contact" 
+            href="https://bookassist.org/book-a-demo" 
             target="_blank" 
             rel="noopener noreferrer"
             className="text-lg px-8 py-4 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1"
