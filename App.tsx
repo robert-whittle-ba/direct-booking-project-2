@@ -52,7 +52,7 @@ const App: React.FC = () => {
               Digital Audit
             </button>
             <a 
-              href="https://bookassist.org/book-a-demo"
+              href="https://bookassist.org/contact"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm font-medium text-gray-500 hover:text-brand-blue transition-colors"
@@ -96,7 +96,7 @@ const App: React.FC = () => {
                 Digital Audit Tool
               </button>
               <a 
-                href="https://bookassist.org/book-a-demo"
+                href="https://bookassist.org/contact"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-left px-4 py-4 rounded-lg text-lg text-gray-700 hover:bg-gray-50"

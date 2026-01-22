@@ -4,13 +4,12 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     // Load env file based on `mode` in the current working directory.
-    // Fix: Property 'cwd' does not exist on type 'Process'.
-    // Use '.' to refer to the current working directory (project root).
-    const env = loadEnv(mode, '.', '');
+    // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
+    const env = loadEnv(mode, process.cwd(), '');
     
     return {
       // 1. ADD THIS LINE (Replace with your repo name, e.g., /my-repo-name/)
-      base: '/direct-booking-project-2/',
+      base: '/',
       server: {
         port: 3000,
         host: '0.0.0.0',
@@ -23,9 +22,7 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          // Fix: Cannot find name '__dirname'.
-          // path.resolve('.') resolves to the current working directory.
-          '@': path.resolve('.'),
+          '@': path.resolve(__dirname, '.'),
         }
       }
     };

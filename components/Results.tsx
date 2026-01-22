@@ -250,7 +250,7 @@ export const Results: React.FC<ResultsProps> = ({ answers, onReset }) => {
             </Button>
             
             <Button 
-                href="https://bookassist.org/book-a-demo" 
+                href="https://bookassist.org/contact" 
                 target="_blank"
                 className="w-full sm:w-auto"
                 disabled={isGeneratingPdf}
