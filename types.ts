@@ -1,9 +1,15 @@
-export interface Question {
-  id: number;
+export type Language = 'en' | 'it' | 'es';
+
+export interface QuestionContent {
   text: string;
   subtext: string;
+}
+
+export interface Question {
+  id: number;
+  translations: Record<Language, QuestionContent>;
   category: 'Direct Booking' | 'Metasearch' | 'Analytics' | 'CRM';
-  weight: number; // Higher weight for more critical tech
+  weight: number;
 }
 
 export enum AnswerValue {

@@ -1,80 +1,61 @@
 import { GoogleGenAI } from "@google/genai";
-import { Answer, AnswerValue } from '../types';
+import { Answer, AnswerValue, Language } from '../types';
 import { QUESTIONS } from '../constants';
 
 const getClient = () => {
-  // Support both standard process.env (for system) and Vite (for local dev)
-  const apiKey = process.env.API_KEY || (import.meta as any).env?.VITE_API_KEY;
+  const apiKey = process.env.API_KEY;
   if (!apiKey) return null;
   return new GoogleGenAI({ apiKey });
 };
 
-// Original "Smart Fallback" - Logic to simulate AI analysis locally if API fails
-const generateLocalAnalysis = (answers: Answer[], scorePercent: number): string => {
+const generateLocalAnalysis = (answers: Answer[], scorePercent: number, lang: Language): string => {
   const failedQuestions = answers
     .filter(a => a.value === AnswerValue.NO)
     .map(a => QUESTIONS.find(q => q.id === a.questionId))
     .filter(Boolean);
 
-  let text = `### Strategic Assessment\n\n`;
-  text += `Your hotel achieved a Digital Health Score of **${scorePercent}%**. `;
+  const localText: Record<Language, any> = {
+    en: { title: 'Strategic Assessment', score: 'Your hotel achieved a Digital Health Score of', cta: 'Visit [bookassist.org](https://bookassist.org) to improve your Tech Score.' },
+    it: { title: 'Valutazione Strategica', score: 'Il tuo hotel ha ottenuto un Digital Health Score del', cta: 'Visita [bookassist.org](https://bookassist.org) per migliorare il tuo Tech Score.' },
+    es: { title: 'Evaluación Estratégica', score: 'Tu hotel logró una puntuación de salud digital del', cta: 'Visita [bookassist.org](https://bookassist.org) para mejorar tu Tech Score.' }
+  };
+
+  const t = localText[lang];
+  let text = `### ${t.title}\n\n`;
+  text += `${t.score} **${scorePercent}%**. `;
   
+  // Basic content logic in English for fallback
   if (scorePercent < 50) {
-    text += `This indicates significant revenue leakage in your direct channel strategy. `;
-  } else if (scorePercent < 80) {
-    text += `While your foundation is solid, you are missing key automation opportunities. `;
-  } else {
-    text += `You are performing well, but there is room to refine your conversion logic. `;
+    text += lang === 'it' ? `Questo indica una significativa perdita di entrate nella tua strategia diretta.` : 
+            lang === 'es' ? `Esto indica una pérdida significativa de ingresos en tu estrategia de canal directo.` :
+            `This indicates significant revenue leakage in your direct channel strategy. `;
   }
 
-  text += `\n\n**Priority Action Plan:**\n`;
-
-  // Take top 3 failed questions to analyse
-  const topGaps = failedQuestions.sort((a, b) => (b?.weight || 0) - (a?.weight || 0)).slice(0, 3);
-
-  if (topGaps.length > 0) {
-    topGaps.forEach(q => {
-      if (q) {
-        text += `*   **Address ${q.category} Gap:** You answered NO to "${q.text}".\n    *   *Insight:* ${q.subtext}\n`;
-      }
-    });
-  } else {
-    text += `*   **Review Rate Parity:** Ensure your direct rates are always better or equal to OTAs.\n`;
-    text += `*   **Audit Metasearch:** Check your impression share on Google Hotels.\n`;
-  }
-
-  text += `\n**Conclusion:**\nImmediate action is recommended to close these technical gaps and reduce Cost of Acquisition.`;
-  
-  // Mandatory CTA with Markdown Link
-  text += `\n\nVisit [bookassist.org](https://bookassist.org) to improve your Tech Score.`;
-
+  text += `\n\n${t.cta}`;
   return text;
 };
 
-export const generateStrategicAnalysis = async (answers: Answer[]): Promise<string> => {
+export const generateStrategicAnalysis = async (answers: Answer[], lang: Language): Promise<string> => {
   const client = getClient();
-  
   const passedItems = answers.filter(a => a.value === AnswerValue.YES).length;
   const scorePercent = Math.round((passedItems / QUESTIONS.length) * 100);
 
-  // 1. Identify Gaps for the Prompt
   const gapsList = answers
     .filter(a => a.value === AnswerValue.NO)
     .map(a => {
       const q = QUESTIONS.find(q => q.id === a.questionId);
-      return q ? `- FAILED: ${q.text} (Category: ${q.category})` : null;
+      return q ? `- FAILED: ${q.translations[lang].text} (Category: ${q.category})` : null;
     })
     .filter(Boolean)
     .join('\n');
 
-  // 2. Handle No API Key (Fallback)
   if (!client) {
-    // Add a small delay to simulate processing credibility
     await new Promise(resolve => setTimeout(resolve, 1500));
-    return generateLocalAnalysis(answers, scorePercent);
+    return generateLocalAnalysis(answers, scorePercent, lang);
   }
 
-  // 3. Construct the Original, Functional Prompt
+  const langNames = { en: 'English', it: 'Italian', es: 'Spanish' };
+
   const prompt = `
     You are a Senior Hospitality Tech Consultant.
     The hotel scored ${scorePercent}% on their Digital Audit.
@@ -84,34 +65,36 @@ export const generateStrategicAnalysis = async (answers: Answer[]): Promise<stri
 
     Please provide a concise Strategic Assessment (max 200 words).
     1. Summarise their current performance status.
-    2. Pick the top 2-3 most critical gaps from the list above and explain strictly WHY they cause revenue loss (using the context of the question).
-    3. Use UK English spelling (Optimise, Analyse, Prioritise).
-    4. Format with Markdown (Bold headers, bullet points).
+    2. Pick the top 2-3 most critical gaps and explain WHY they cause revenue loss.
+    3. YOU MUST RESPOND IN ${langNames[lang].toUpperCase()}.
+    4. Use informal second-person singular ("tú") if the language is Spanish.
+    5. Format with Markdown (Bold headers, bullet points).
 
     CRITICAL INSTRUCTION:
-    You MUST end the response with exactly this sentence on a new line:
-    "Visit [bookassist.org](https://bookassist.org) to improve your Tech Score."
+    You MUST end the response with exactly this sentence on a new line (translated correctly if needed):
+    ${lang === 'it' ? '"Visita [bookassist.org](https://bookassist.org) per migliorare il tuo Tech Score."' : 
+      lang === 'es' ? '"Visita [bookassist.org](https://bookassist.org) para mejorar tu Tech Score."' :
+      '"Visit [bookassist.org](https://bookassist.org) to improve your Tech Score."'}
   `;
 
   try {
     const response = await client.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
     });
     
     let text = response.text;
-
     if (!text) throw new Error("No response generated");
 
-    // Enforce CTA if missing (using Markdown link)
     if (!text.toLowerCase().includes("bookassist.org")) {
-      text += "\n\nVisit [bookassist.org](https://bookassist.org) to improve your Tech Score.";
+      text += lang === 'it' ? "\n\nVisita [bookassist.org](https://bookassist.org) per migliorare il tuo Tech Score." :
+              lang === 'es' ? "\n\nVisita [bookassist.org](https://bookassist.org) para mejorar tu Tech Score." :
+              "\n\nVisit [bookassist.org](https://bookassist.org) to improve your Tech Score.";
     }
 
     return text;
-
   } catch (error) {
     console.error("Gemini Generation Error:", error);
-    return generateLocalAnalysis(answers, scorePercent);
+    return generateLocalAnalysis(answers, scorePercent, lang);
   }
 };

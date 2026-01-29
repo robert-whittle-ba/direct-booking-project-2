@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { BrainCircuit, Activity, RefreshCcw, ArrowRight, Download, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { Answer, AnswerValue } from '../types';
+import { Answer, AnswerValue, Language } from '../types';
 import { QUESTIONS, MAX_SCORE } from '../constants';
 import { generateStrategicAnalysis } from '../services/geminiService';
+import { useContent } from '../contexts/ContentContext';
 import { Button } from './Button';
 import { EditableText } from './Editable';
 
@@ -17,8 +18,8 @@ export const Results: React.FC<ResultsProps> = ({ answers, onReset }) => {
   const [loading, setLoading] = useState(true);
   const [analysis, setAnalysis] = useState<string>('');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const { language } = useContent();
 
-  // Calculate Score
   const score = answers.reduce((acc, ans) => {
     if (ans.value === AnswerValue.YES) {
       const q = QUESTIONS.find(q => q.id === ans.questionId);
@@ -28,133 +29,77 @@ export const Results: React.FC<ResultsProps> = ({ answers, onReset }) => {
   }, 0);
 
   const percentage = Math.round((score / MAX_SCORE) * 100);
-
-  // Count missing features
   const missingCount = answers.filter(a => a.value === AnswerValue.NO).length;
 
-  // Determine Status
-  let status = "Critical Condition";
-  let color = "#E63946"; // Red
-  let subtext = "Your direct channel is highly vulnerable to OTA dominance.";
+  const statusMap: Record<Language, any> = {
+    en: { critical: "Critical Condition", risk: "Digital Risk", optimized: "Optimised", subCritical: "Highly vulnerable to OTA dominance.", subRisk: "Missing profit-driving automation.", subOpt: "Performing well against industry benchmarks." },
+    it: { critical: "Condizione Critica", risk: "Rischio Digitale", optimized: "Ottimizzato", subCritical: "Altamente vulnerabile al dominio delle OTA.", subRisk: "Manca l'automazione che genera profitto.", subOpt: "Ottime prestazioni rispetto ai benchmark di settore." },
+    es: { critical: "Estado Crítico", risk: "Riesgo Digital", optimized: "Optimizado", subCritical: "Altamente vulnerable al dominio de las OTA.", subRisk: "Falta automatización que genere beneficios.", subOpt: "Buen desempeño frente a los estándares de la industria." }
+  };
+
+  const labelsMap: Record<Language, any> = {
+    en: { auditComplete: "AUDIT COMPLETE", passing: "Passing Checks", gaps: "Critical Gaps", aiTitle: "AI Strategic Assessment", retake: "Retake Audit", download: "Download PDF Report", book: "Book Consultation", generating: "Generating PDF..." },
+    it: { auditComplete: "AUDIT COMPLETATO", passing: "Controlli Superati", gaps: "Lacune Critiche", aiTitle: "Valutazione Strategica AI", retake: "Rifai l'Audit", download: "Scarica Report PDF", book: "Prenota Consulenza", generating: "Generazione PDF..." },
+    es: { auditComplete: "AUDIT COMPLETADO", passing: "Pruebas Superadas", gaps: "Brechas Críticas", aiTitle: "Evaluación Estratégica IA", retake: "Repetir Audit", download: "Descargar Reporte PDF", book: "Reservar Consultoría", generating: "Generando PDF..." }
+  };
+
+  const s = statusMap[language];
+  const l = labelsMap[language];
+
+  let status = s.critical;
+  let color = "#E63946";
+  let subtext = s.subCritical;
 
   if (percentage >= 40 && percentage < 70) {
-    status = "Digital Risk";
-    color = "#F59E0B"; // Amber
-    subtext = "Foundational tech exists, but you are missing profit-driving automation.";
+    status = s.risk;
+    color = "#F59E0B";
+    subtext = s.subRisk;
   } else if (percentage >= 70) {
-    status = "Optimised";
-    color = "#2A9D8F"; // Success
-    subtext = "Your technology stack is performing well against industry benchmarks.";
+    status = s.optimized;
+    color = "#2A9D8F";
+    subtext = s.subOpt;
   }
 
-  const data = [
-    { name: 'Score', value: score },
-    { name: 'Gap', value: MAX_SCORE - score }
-  ];
+  const data = [{ name: 'Score', value: score }, { name: 'Gap', value: MAX_SCORE - score }];
 
-  // Trigger AI Analysis on Mount
   useEffect(() => {
     let isActive = true;
-    
     const runAnalysis = async () => {
       setLoading(true);
       try {
-        // Standard async call - simple and robust
-        const result = await generateStrategicAnalysis(answers);
-        if (isActive) {
-          setAnalysis(result);
-        }
+        const result = await generateStrategicAnalysis(answers, language);
+        if (isActive) setAnalysis(result);
       } catch (error) {
-        if (isActive) {
-          setAnalysis("Unable to generate analysis at this time. Visit [bookassist.org](https://bookassist.org) to improve your Tech Score.");
-        }
+        if (isActive) setAnalysis("Analysis error.");
       } finally {
         if (isActive) setLoading(false);
       }
     };
-
     runAnalysis();
-
     return () => { isActive = false; };
-  }, [answers]);
+  }, [answers, language]);
 
   const handleDownloadPDF = async () => {
     setIsGeneratingPdf(true);
-    
-    // Tiny delay to allow React to render the PDF Header visible
     await new Promise(resolve => setTimeout(resolve, 200));
-
     const element = document.getElementById('report-container');
     const html2pdf = (window as any).html2pdf;
-    
     if (html2pdf && element) {
       try {
-        const opt = {
-          margin: [10, 10, 10, 10], // top, left, bottom, right
-          filename: 'Hotel_Health_Audit.pdf',
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { 
-            scale: 2, // Higher scale for better clarity
-            useCORS: true,
-            logging: false,
-            scrollY: 0,
-            windowWidth: document.documentElement.offsetWidth
-          },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
+        const opt = { margin: [10, 10, 10, 10], filename: 'Hotel_Health_Audit.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
         await html2pdf().set(opt).from(element).save();
-      } catch (error) {
-        console.error("PDF Generation failed", error);
-        alert("There was an error generating the PDF. We are opening the print dialog as a backup.");
-        window.print();
-      } finally {
-        setIsGeneratingPdf(false);
-      }
-    } else {
-      // Fallback if library didn't load
-      console.warn("html2pdf library not found");
-      window.print();
-      setIsGeneratingPdf(false);
-    }
+      } catch (error) { window.print(); } finally { setIsGeneratingPdf(false); }
+    } else { window.print(); setIsGeneratingPdf(false); }
   };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 w-full" id="report-container">
-      {/* PDF Header - Visible only in PDF via layout logic */}
-      <div className="mb-8 border-b-2 border-brand-blue pb-4 hidden" style={{ display: isGeneratingPdf ? 'block' : 'none' }}>
-        <div className="flex justify-between items-end">
-            <div>
-                <h1 className="text-3xl font-bold text-brand-blue">Hotel Health Clinic</h1>
-                <p className="text-gray-500 text-sm uppercase tracking-widest">Official Tech & Marketing Audit Report</p>
-            </div>
-            <div className="text-right text-sm text-gray-400">
-                <p>Date: {new Date().toLocaleDateString()}</p>
-                <p>Generated by Hotel Health Clinic Tool</p>
-            </div>
-        </div>
-      </div>
-
-      {/* Results Header */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mb-8 print:shadow-none print:border-2 print:border-gray-200">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mb-8 print:shadow-none print:border-2">
         <div className="p-6 sm:p-10 md:p-12 flex flex-col md:flex-row items-center gap-10">
-          
-          {/* Chart Section */}
-          <div className="flex-shrink-0 relative w-48 h-48 sm:w-56 sm:h-56 print:w-40 print:h-40">
+          <div className="flex-shrink-0 relative w-48 h-48 sm:w-56 sm:h-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius="80%"
-                  outerRadius="100%"
-                  startAngle={90}
-                  endAngle={-270}
-                  dataKey="value"
-                  stroke="none"
-                  isAnimationActive={false} /* CRITICAL for PDF: Disable animation so screenshot captures it */
-                >
+                <Pie data={data} cx="50%" cy="50%" innerRadius="80%" outerRadius="100%" startAngle={90} endAngle={-270} dataKey="value" stroke="none" isAnimationActive={false}>
                   <Cell fill={color} />
                   <Cell fill="#E5E7EB" />
                 </Pie>
@@ -165,97 +110,60 @@ export const Results: React.FC<ResultsProps> = ({ answers, onReset }) => {
               <span className="text-xs text-gray-400 font-medium uppercase tracking-wider mt-1">Tech Score</span>
             </div>
           </div>
-
-          {/* Text Section */}
           <div className="flex-1 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-bold tracking-wide mb-4 print:border print:border-gray-300">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-bold tracking-wide mb-4">
               <Activity size={14} />
-              AUDIT COMPLETE
+              {l.auditComplete}
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
               Status: <span style={{ color }}>{status}</span>
             </h2>
-            <p className="text-lg text-gray-600 leading-relaxed mb-6">
-              {subtext}
-            </p>
-            
+            <p className="text-lg text-gray-600 leading-relaxed mb-6">{subtext}</p>
             <div className="grid grid-cols-2 gap-4 max-w-md mx-auto md:mx-0">
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 print:bg-gray-50">
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                 <div className="text-2xl font-bold text-gray-900">{answers.length - missingCount}</div>
-                <div className="text-xs text-gray-500 uppercase">Passing Checks</div>
+                <div className="text-xs text-gray-500 uppercase">{l.passing}</div>
               </div>
-              <div className="bg-red-50 p-3 rounded-lg border border-red-100 print:bg-red-50">
+              <div className="bg-red-50 p-3 rounded-lg border border-red-100">
                 <div className="text-2xl font-bold text-brand-accent">{missingCount}</div>
-                <div className="text-xs text-red-400 uppercase">Critical Gaps</div>
+                <div className="text-xs text-red-400 uppercase">{l.gaps}</div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* AI Analysis Section */}
-      <div className="bg-brand-blue text-white rounded-2xl shadow-xl overflow-hidden mb-8 print:bg-brand-blue print:text-white break-inside-avoid">
+      <div className="bg-brand-blue text-white rounded-2xl shadow-xl overflow-hidden mb-8 print:bg-brand-blue print:text-white">
         <div className="p-6 sm:p-8 border-b border-blue-800/50 flex items-center gap-3">
           <BrainCircuit className="w-6 h-6 text-blue-300" />
-          <h3 className="text-xl font-semibold">AI Strategic Assessment</h3>
+          <h3 className="text-xl font-semibold">{l.aiTitle}</h3>
         </div>
-        
         <div className="p-6 sm:p-10 leading-relaxed space-y-4 text-blue-50">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-8 space-y-4">
               <Loader2 className="w-8 h-8 animate-spin text-blue-300" />
-              <p className="text-sm text-blue-200 animate-pulse">Analysing your tech stack data...</p>
+              <p className="text-sm text-blue-200 animate-pulse">Analysing...</p>
             </div>
           ) : (
             <div className="prose prose-invert prose-blue max-w-none">
-               <ReactMarkdown
-                  components={{
-                    a: ({node, ...props}) => (
-                      <a 
-                        {...props} 
-                        className="text-white underline font-semibold hover:text-blue-200 transition-colors" 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                      />
-                    )
-                  }}
-               >
-                 {analysis || ''}
-               </ReactMarkdown>
+               <ReactMarkdown>{analysis}</ReactMarkdown>
             </div>
           )}
         </div>
       </div>
 
-      {/* Action Buttons - Hidden in Print AND PDF Export */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 print:hidden mt-8" data-html2canvas-ignore="true">
-        <button
-          onClick={onReset}
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-          disabled={isGeneratingPdf}
-        >
+        <button onClick={onReset} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors">
           <RefreshCcw size={18} />
-          Retake Audit
+          {l.retake}
         </button>
-
         <div className="flex gap-3 w-full sm:w-auto">
-             <Button 
-                onClick={handleDownloadPDF} 
-                variant="outline" 
-                className="w-full sm:w-auto"
-                disabled={isGeneratingPdf}
-            >
+             <Button onClick={handleDownloadPDF} variant="outline" className="w-full sm:w-auto" disabled={isGeneratingPdf}>
                 {isGeneratingPdf ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                {isGeneratingPdf ? 'Generating PDF...' : 'Download PDF Report'}
+                {isGeneratingPdf ? l.generating : l.download}
             </Button>
-            
-            <Button 
-                href="https://bookassist.org/book-a-demo" 
-                target="_blank"
-                className="w-full sm:w-auto"
-                disabled={isGeneratingPdf}
-            >
-                Book Consultation <ArrowRight size={18} />
+            <Button href="https://bookassist.org/book-a-demo" target="_blank" className="w-full sm:w-auto">
+                {l.book} <ArrowRight size={18} />
             </Button>
         </div>
       </div>

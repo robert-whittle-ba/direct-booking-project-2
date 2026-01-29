@@ -1,3 +1,4 @@
+
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -5,7 +6,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     // Load env file based on `mode` in the current working directory.
     // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
-    const env = loadEnv(mode, process.cwd(), '');
+    // Fix: Use '.' as the environment directory to avoid "Property 'cwd' does not exist on type 'Process'"
+    const env = loadEnv(mode, '.', '');
     
     return {
       // 1. ADD THIS LINE (Replace with your repo name, e.g., /my-repo-name/)
@@ -22,7 +24,8 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          '@': path.resolve(__dirname, '.'),
+          // Fix: Use path.resolve('.') instead of __dirname to avoid "Cannot find name '__dirname'"
+          '@': path.resolve('.'),
         }
       }
     };
