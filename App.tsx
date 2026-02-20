@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Home } from './components/Home';
+import { Home as HomePage } from './components/Home';
 import { AuditTool } from './components/AuditTool';
-import { Activity, Menu, X, Globe } from 'lucide-react';
+import { Activity, Menu, X, Globe, Home as HomeIcon } from 'lucide-react';
 import { EditableText } from './components/Editable';
 import { useContent } from './contexts/ContentContext';
 import { Language } from './types';
@@ -77,9 +77,10 @@ const App: React.FC = () => {
             <div className="hidden md:flex items-center gap-6 lg:gap-8 print:hidden">
               <button 
                 onClick={() => navigateTo('HOME')}
-                className={`text-sm font-medium transition-colors ${currentPage === 'HOME' ? 'text-brand-blue font-bold' : 'text-gray-500 hover:text-brand-blue'}`}
+                className={`transition-colors p-2 rounded-lg hover:bg-gray-50 flex items-center justify-center ${currentPage === 'HOME' ? 'text-brand-blue bg-blue-50' : 'text-gray-500 hover:text-brand-blue'}`}
+                title="Home"
               >
-                Home
+                <HomeIcon size={20} />
               </button>
               <button 
                 onClick={() => navigateTo('AUDIT')}
@@ -122,9 +123,10 @@ const App: React.FC = () => {
             <div className="px-4 py-6 space-y-3 flex flex-col pb-20">
               <button 
                 onClick={() => navigateTo('HOME')}
-                className={`text-left px-4 py-4 rounded-lg text-lg ${currentPage === 'HOME' ? 'bg-blue-50 text-brand-blue font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                className={`flex items-center gap-3 px-4 py-4 rounded-lg text-lg ${currentPage === 'HOME' ? 'bg-blue-50 text-brand-blue font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
               >
-                Home
+                <HomeIcon size={24} />
+                <span>Home</span>
               </button>
               <button 
                 onClick={() => navigateTo('AUDIT')}
@@ -154,7 +156,7 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-grow flex flex-col items-center justify-start w-full pt-4 sm:pt-6 pb-12 print:pt-4 print:pb-0">
-        {currentPage === 'HOME' && <Home onStart={() => navigateTo('AUDIT')} />}
+        {currentPage === 'HOME' && <HomePage onStart={() => navigateTo('AUDIT')} />}
         {currentPage === 'AUDIT' && <AuditTool />}
       </main>
 
